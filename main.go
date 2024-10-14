@@ -13,10 +13,12 @@ import (
 	"github.com/nbd-wtf/go-nostr/nip19"
 )
 
-var events []string
+var (
+	calendarEvents []string
+	mu             sync.Mutex
+)
 
-func fetchNotes(globalEvents *[]string, wg *sync.WaitGroup, npub string) {
-	defer wg.Done()
+func fetchNotes(npub string) {
 	ctx := context.Background()
 
 	relayUrl := "wss://relay.damus.io"
@@ -24,9 +26,6 @@ func fetchNotes(globalEvents *[]string, wg *sync.WaitGroup, npub string) {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println("Relay url: ", relay.URL)
-
-	fmt.Println("Npub: ", npub)
 	var filters nostr.Filters
 	if _, v, err := nip19.Decode(npub); err == nil {
 		pub := v.(string)
@@ -54,13 +53,29 @@ func fetchNotes(globalEvents *[]string, wg *sync.WaitGroup, npub string) {
 		}
 		events = append(events, string(json))
 	}
-	*globalEvents = events
+	mu.Lock()
+	calendarEvents = events
+	mu.Unlock()
+}
+
+func startPeriodicFetch(interval time.Duration, npub string) {
+	timezone := time.FixedZone("GMT+2", 2*60*60)
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	for {
+		currentTime := time.Now().In(timezone)
+		fmt.Printf("Refreshing events cache @ %s\n", currentTime.Format("2006-01-02 15:04:05"))
+		<-ticker.C
+		fetchNotes(npub)
+	}
 }
 
 func handleEvents(w http.ResponseWriter, r *http.Request) {
+	mu.Lock()
+	defer mu.Unlock()
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	data, err := json.Marshal(events)
+	data, err := json.Marshal(calendarEvents)
 	if err != nil {
 		fmt.Printf("Error serializing json: %v", err)
 	}
@@ -69,14 +84,13 @@ func handleEvents(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	npub := os.Args[1]
-	var wg sync.WaitGroup
-	wg.Add(1)
-
-	go fetchNotes(&events, &wg, npub)
-
-	wg.Wait()
-	fmt.Println(events)
+	go fetchNotes(npub)
+	go startPeriodicFetch(60*time.Second, npub)
 
 	http.HandleFunc("/events", handleEvents)
-	http.ListenAndServe(":1337", nil)
+
+	fmt.Println("Starting listening on :1337")
+	if err := http.ListenAndServe(":1337", nil); err != nil {
+		fmt.Println("Error starting server: ", err)
+	}
 }
