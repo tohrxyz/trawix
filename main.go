@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"sync"
 	"time"
 
@@ -14,7 +15,7 @@ import (
 
 var events []string
 
-func fetchNotes(globalEvents *[]string, wg *sync.WaitGroup) {
+func fetchNotes(globalEvents *[]string, wg *sync.WaitGroup, npub string) {
 	defer wg.Done()
 	ctx := context.Background()
 
@@ -25,7 +26,6 @@ func fetchNotes(globalEvents *[]string, wg *sync.WaitGroup) {
 	}
 	fmt.Println("Relay url: ", relay.URL)
 
-	npub := "npub"
 	fmt.Println("Npub: ", npub)
 	var filters nostr.Filters
 	if _, v, err := nip19.Decode(npub); err == nil {
@@ -54,7 +54,7 @@ func fetchNotes(globalEvents *[]string, wg *sync.WaitGroup) {
 		}
 		events = append(events, string(json))
 	}
-	*globalEvents = append(*globalEvents, events...)
+	*globalEvents = events
 }
 
 func handleEvents(w http.ResponseWriter, r *http.Request) {
@@ -68,10 +68,11 @@ func handleEvents(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	npub := os.Args[1]
 	var wg sync.WaitGroup
 	wg.Add(1)
 
-	go fetchNotes(&events, &wg)
+	go fetchNotes(&events, &wg, npub)
 
 	wg.Wait()
 	fmt.Println(events)
