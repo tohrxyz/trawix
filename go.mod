@@ -1,4 +1,4 @@
-module caching-relay
+module trawix
 
 go 1.23.0
 
