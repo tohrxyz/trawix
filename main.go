@@ -53,25 +53,25 @@ func handleEventsByNpubAndRelay(w http.ResponseWriter, r *http.Request) {
 	queries := r.URL.Query()
 	npub := queries.Get("npub")
 	if npub == "" {
-		fmt.Printf("No npub found.")
+		fmt.Printf("No npub found.\n")
 		http.Error(w, "No npub found", http.StatusBadRequest)
 		return
 	}
 	relay := queries.Get("relay")
 	if relay == "" {
-		fmt.Printf("No relay found.")
+		fmt.Printf("No relay found.\n")
 		http.Error(w, "No relay found", http.StatusBadRequest)
 		return
 	}
 
 	events, err := fetchNotesOnDemand(npub, relay)
 	if err != nil {
-		fmt.Printf("Error while fetching notes: %v", err)
+		fmt.Printf("Error while fetching notes: %v\n", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 	data, err := json.Marshal(events)
 	if err != nil {
-		fmt.Printf("Error serializing json: %v", err)
+		fmt.Printf("Error serializing json: %v\n", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 
