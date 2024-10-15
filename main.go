@@ -71,6 +71,7 @@ func handleEventsByNpubAndRelay(w http.ResponseWriter, r *http.Request) {
 	if len(kinds) == 0 {
 		fmt.Printf("No event kinds found.\n")
 		http.Error(w, "No kinds found", http.StatusBadRequest)
+		return
 	}
 
 	var parsedKinds []int
@@ -93,11 +94,13 @@ func handleEventsByNpubAndRelay(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		fmt.Printf("Error while fetching notes: %v\n", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 	data, err := json.Marshal(events)
 	if err != nil {
 		fmt.Printf("Error serializing json: %v\n", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 
 	timeEnd := time.Now()
